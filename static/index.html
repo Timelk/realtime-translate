@@ -458,10 +458,10 @@
         font-size: 16px;
       }
 
-      /* Engine bar — 当前隐藏 (单引擎部署), 切换按钮 DOM 保留以兼容 JS */
+      /* Engine bar — 国内外双引擎切换 (Notion 文档式 sliding underline) */
       .engine-bar {
-        display: none !important;
         padding: 6px 22px 0;
+        display: flex;
         gap: 0;
         border-bottom: 1px solid var(--line);
         flex-shrink: 0;
@@ -2864,7 +2864,11 @@
             if (m.recording_id) currentRecordingId = m.recording_id;
             break;
           case "ready": {
-            onBackendReady();
+            const eng =
+              m.engine === "openai"
+                ? "⚡ OpenAI 直译 (国外)"
+                : "🔁 Qwen+DeepSeek (国内)";
+            onBackendReady(eng);
             if (m.recording_id) currentRecordingId = m.recording_id;
             break;
           }
@@ -3379,25 +3383,51 @@
         document.getElementById("netSpinner").style.display = "block";
         document.getElementById("netRetry").style.display = "none";
         document.getElementById("netMaskDesc").textContent =
-          "正在检测网络…";
+          "正在检测国内/国外网络…";
         document.getElementById("netMask").classList.add("show");
-        const cn = await _probe("https://www.baidu.com/favicon.ico");
-        networkState = { intl: null, cn };
+        const [intl, cn] = await Promise.all([
+          _probe("https://www.gstatic.com/generate_204"),
+          _probe("https://www.baidu.com/favicon.ico"),
+        ]);
+        networkState = { intl, cn };
         applyNetworkState();
       }
 
       function applyNetworkState() {
-        const { cn } = networkState;
+        const { intl, cn } = networkState;
         const mask = document.getElementById("netMask");
-        if (!cn) {
+        if (!intl && !cn) {
           document.getElementById("netSpinner").style.display = "none";
           document.getElementById("netRetry").style.display = "inline-block";
           document.getElementById("netMaskDesc").innerHTML =
-            "网络不可达<br>请检查网络后重试";
+            "国内 (baidu) 和国外 (google) 都不可达<br>请检查网络后重试";
           mask.classList.add("show");
           return;
         }
         mask.classList.remove("show");
+        // 给 engine button 标 disabled (当前网络不可达时禁用对应引擎)
+        document
+          .querySelectorAll('.engine-btn[data-engine="openai"]')
+          .forEach((b) => {
+            b.disabled = !intl;
+            b.classList.toggle("disabled", !intl);
+            b.title = intl ? "" : "国外网络不可达 (google.com 探测失败)";
+          });
+        document
+          .querySelectorAll('.engine-btn[data-engine="dashscope"]')
+          .forEach((b) => {
+            b.disabled = !cn;
+            b.classList.toggle("disabled", !cn);
+            b.title = cn ? "" : "国内网络不可达 (baidu.com 探测失败)";
+          });
+        // 当前 engine 如果不可达 → 切到可达的
+        if (config.engine === "openai" && !intl && cn) {
+          config.engine = "dashscope";
+          toast("国外网络不通,已切到 Qwen+DP4");
+        } else if (config.engine === "dashscope" && !cn && intl) {
+          config.engine = "openai";
+          toast("国内网络不通,已切到 OpenAI");
+        }
         syncEngineUI();
       }
 
@@ -3453,7 +3483,13 @@
         document.querySelectorAll(".engine-btn").forEach((b) => {
           b.classList.toggle("active", b.dataset.engine === config.engine);
         });
-        // engine-bar 已隐藏, 不再向 mic-info 写引擎品牌
+        const lbl =
+          config.engine === "openai" ? "⚡ OpenAI (国外)" : "🔁 Qwen+DP4 (国内)";
+        const m = document.getElementById("micSoloMeta");
+        if (m) m.innerHTML = `引擎: <b>${lbl}</b>`;
+        const r = document.getElementById("micRoomMeta");
+        if (r) r.innerHTML = `<b>${lbl}</b>`;
+        requestAnimationFrame(syncEngineUnderline);
       }
 
       function syncEngineUnderline() {
@@ -3835,14 +3871,14 @@
       }
 
       // 后端 ready 回调: connecting → recording
-      function onBackendReady() {
+      function onBackendReady(engLabel) {
         backendReady = true;
         document.querySelectorAll(".mic.connecting").forEach((b) => {
           b.classList.remove("connecting");
           b.classList.add("recording");
         });
         hideBusyBanner();
-        setMicTitle("录音中…", false);
+        setMicTitle(`${engLabel || ""} · 录音中`.trim(), false);
         startWaveViz();
       }
 

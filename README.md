@@ -120,7 +120,7 @@ open http://localhost:8800
 ## 🏗 架构
 
 <div align="center">
-<img src="docs/architecture.png" alt="架构图" width="80%">
+<img src="docs/architecture.svg" alt="架构图" width="100%">
 </div>
 
 - **Browser**:Vanilla JS SPA + Web Audio FFT 音波 + Silero VAD ONNX + Apple Live Captions UI
