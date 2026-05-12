@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 G · Studio — 群组会议</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #14110d;          /* 深炭哑光 */
+    --surface: #1c1814;
+    --surface-2: #25201a;
+    --line: #2e2820;
+    --line-2: #3a3328;
+    --text: #ebe5d8;        /* 米白 */
+    --text-soft: #b3ad9e;
+    --dim: #807868;
+    --ember: #e87b3e;       /* 燃橘 (主) */
+    --moss: #6f9b5f;        /* 苔绿 */
+    --plum: #9c6b8f;        /* 紫梅 */
+    --sky: #6da3c6;         /* 烟蓝 */
+    --sans: 'Onest', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --cn: 'Noto Sans SC', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    display: flex; justify-content: center; align-items: center;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    font-size: 14px;
+  }
+  .app {
+    width: 100%; max-width: 420px; height: 100dvh;
+    display: flex; flex-direction: column;
+    background: var(--bg);
+  }
+
+  /* ---- Top bar (room info) ---- */
+  .room {
+    padding: 18px 18px 12px;
+    border-bottom: 1px solid var(--line);
+    display: flex; gap: 12px; align-items: center;
+  }
+  .room-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--ember), #c25425);
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1px rgba(232,123,62,.3);
+  }
+  .room-info { flex: 1; min-width: 0; }
+  .room-info .name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .room-info .meta {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--dim);
+    margin-top: 2px;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .room-info .meta .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--moss); animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .room-action {
+    width: 32px; height: 32px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text-soft);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .room-action:hover { color: var(--ember); border-color: var(--ember); }
+
+  /* ---- Members strip ---- */
+  .members {
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--line);
+    display: flex; gap: 6px; align-items: center;
+    overflow-x: auto;
+  }
+  .members::-webkit-scrollbar { display: none; }
+  .avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--line-2);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    color: var(--bg);
+    position: relative;
+  }
+  .avatar.alice { background: var(--ember); }
+  .avatar.bob { background: var(--moss); }
+  .avatar.carlos { background: var(--plum); }
+  .avatar.dawit { background: var(--sky); }
+  .avatar.me {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--line-2);
+  }
+  .avatar.speaking::after {
+    content: '';
+    position: absolute; inset: -3px;
+    border: 2px solid var(--ember);
+    border-radius: 50%;
+    animation: ring 1.2s ease-out infinite;
+  }
+  @keyframes ring {
+    0% { transform: scale(.85); opacity: .9; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+  .members .more {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--dim);
+    margin-left: 4px;
+  }
+  .members .add {
+    margin-left: auto;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 1px dashed var(--line-2);
+    background: none;
+    color: var(--dim);
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  /* ---- Engine strip ---- */
+  .engine {
+    padding: 8px 18px;
+    border-bottom: 1px solid var(--line);
+    display: flex; gap: 6px;
+    background: var(--surface);
+  }
+  .e-btn {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text-soft);
+    border-radius: 6px;
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: .04em;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .e-btn.active {
+    background: var(--ember);
+    color: var(--bg);
+    border-color: var(--ember);
+  }
+
+  /* ---- Messages ---- */
+  .stream {
+    flex: 1; overflow-y: auto;
+    padding: 12px 0;
+    display: flex; flex-direction: column;
+  }
+  .stream::-webkit-scrollbar { width: 0; }
+
+  .msg {
+    padding: 10px 18px 12px;
+    display: flex; gap: 12px;
+  }
+  .msg:hover { background: rgba(255,255,255,.015); }
+  .msg .av { flex-shrink: 0; }
+  .msg .body { flex: 1; min-width: 0; }
+  .msg .head {
+    display: flex; gap: 8px; align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .msg .name {
+    font-weight: 600; font-size: 13px;
+    color: var(--text);
+  }
+  .msg .name.ember { color: var(--ember); }
+  .msg .name.moss { color: var(--moss); }
+  .msg .name.plum { color: var(--plum); }
+  .msg .name.sky { color: var(--sky); }
+  .msg .lang {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--dim);
+    background: var(--surface);
+    padding: 1px 5px;
+    border-radius: 4px;
+    letter-spacing: .08em;
+  }
+  .msg .ts {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--dim);
+    margin-left: auto;
+  }
+  .msg .src {
+    font-family: var(--cn);
+    font-size: 14px;
+    color: var(--text-soft);
+    line-height: 1.5;
+    font-weight: 400;
+  }
+  .msg .tgt {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.55;
+    font-weight: 500;
+    margin-top: 4px;
+    padding-left: 10px;
+    border-left: 2px solid var(--ember);
+  }
+  .msg.typing .tgt::after {
+    content: '▌'; color: var(--ember);
+    margin-left: 2px;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---- Bottom dock ---- */
+  .dock {
+    padding: 12px 18px 18px;
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .mic {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--ember);
+    border: none;
+    color: var(--bg);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 6px rgba(232,123,62,.18);
+    animation: mic-bp 1.6s ease-in-out infinite;
+  }
+  @keyframes mic-bp {
+    0%, 100% { box-shadow: 0 0 0 6px rgba(232,123,62,.18); }
+    50%      { box-shadow: 0 0 0 12px rgba(232,123,62,.06); }
+  }
+  .mic svg { width: 18px; height: 18px; fill: var(--bg); }
+
+  .txt-in {
+    flex: 1;
+    padding: 10px 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    color: var(--dim);
+    font-family: var(--sans);
+    font-size: 13px;
+  }
+
+  .export {
+    padding: 8px 14px;
+    border: 1px solid var(--line-2);
+    background: transparent;
+    color: var(--text-soft);
+    border-radius: 8px;
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: .08em;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .export:hover { border-color: var(--ember); color: var(--ember); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="room">
+    <div class="room-icon">Q3</div>
+    <div class="room-info">
+      <div class="name">Q3 季度规划讨论</div>
+      <div class="meta"><span class="dot"></span>4 在线 · 12 分钟 · 我听: <b style="color:var(--ember)">中文</b></div>
+    </div>
+    <button class="room-action">⋯</button>
+  </div>
+
+  <div class="members">
+    <div class="avatar alice speaking">A</div>
+    <div class="avatar bob">B</div>
+    <div class="avatar carlos">C</div>
+    <div class="avatar dawit">D</div>
+    <div class="avatar me">我</div>
+    <span class="more">+0</span>
+    <button class="add">+</button>
+  </div>
+
+  <div class="engine">
+    <button class="e-btn">AUTO</button>
+    <button class="e-btn active">⚡ OPENAI</button>
+    <button class="e-btn">QWEN+DP4</button>
+  </div>
+
+  <div class="stream">
+
+    <div class="msg">
+      <div class="av"><div class="avatar alice">A</div></div>
+      <div class="body">
+        <div class="head">
+          <span class="name ember">Alice</span>
+          <span class="lang">ZH</span>
+          <span class="ts">12:30:14</span>
+        </div>
+        <div class="src">大家好,我们开始今天的季度规划会议。</div>
+        <div class="tgt">大家好,我们开始今天的季度规划会议。</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="av"><div class="avatar bob">B</div></div>
+      <div class="body">
+        <div class="head">
+          <span class="name moss">Bob</span>
+          <span class="lang">EN</span>
+          <span class="ts">12:30:32</span>
+        </div>
+        <div class="src">Sounds good, Alice. I have a few things to discuss.</div>
+        <div class="tgt">听起来不错,Alice。我有几件事要讨论。</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="av"><div class="avatar carlos">C</div></div>
+      <div class="body">
+        <div class="head">
+          <span class="name plum">Carlos</span>
+          <span class="lang">ES</span>
+          <span class="ts">12:31:08</span>
+        </div>
+        <div class="src">Quería agregar que el equipo de Madrid ya completó el roadmap del Q2.</div>
+        <div class="tgt">我想补充一下,马德里团队已经完成了 Q2 的路线图。</div>
+      </div>
+    </div>
+
+    <div class="msg typing">
+      <div class="av"><div class="avatar dawit speaking">D</div></div>
+      <div class="body">
+        <div class="head">
+          <span class="name sky">Dawit</span>
+          <span class="lang">EN</span>
+          <span class="ts">正在说…</span>
+        </div>
+        <div class="src">From Addis Ababa, we should align timelines</div>
+        <div class="tgt">来自亚的斯亚贝巴,我们应该对齐时间表</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="dock">
+    <button class="mic">
+      <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+    </button>
+    <div class="txt-in">点击麦克风发言…</div>
+    <button class="export">↓ 导出</button>
+  </div>
+
+</div>
+
+</body>
+</html>

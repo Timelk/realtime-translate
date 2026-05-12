@@ -35,11 +35,14 @@ import wave
 import subprocess
 import websocket
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ============================================================
 # 配置
 # ============================================================
-API_KEY = "sk-9b8d58b2f0ee44158c01399ef8f778b8"
+API_KEY = os.getenv("DASHSCOPE_API_KEY", "")
 BASE_WS_URL = "wss://dashscope.aliyuncs.com/api-ws/v1/realtime"
 HEADERS = [
     f"Authorization: Bearer {API_KEY}",
@@ -49,7 +52,7 @@ HEADERS = [
 REST_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 # DeepSeek 翻译
-TRANSLATE_API_KEY = "sk-1f98113785b6434f9db60724dfb8afa1"
+TRANSLATE_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 TRANSLATE_MODEL = "deepseek-v4-flash"
 TRANSLATE_URL = "https://api.deepseek.com/chat/completions"
 

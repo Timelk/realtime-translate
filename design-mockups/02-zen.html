@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 B · Zen Kuru — 実時翻訳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500;700&family=Noto+Serif+SC:wght@300;400;500;600&family=Public+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f5f1e8;          /* 米白纸 */
+    --paper-deep: #ece5d2;     /* 略深米色 */
+    --ink: #1a1a1a;            /* 墨黑 */
+    --ink-soft: #5a554b;       /* 灰墨 */
+    --ink-faded: #9a9080;      /* 淡灰 */
+    --rule: #d4cdb8;
+    --shu: #b03828;            /* 朱砂 - 仅重点 */
+    --serif: 'Noto Serif JP', 'Noto Serif SC', serif;
+    --sans: 'Public Sans', system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    display: flex; justify-content: center; align-items: center;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    /* 米纸纹理 */
+    background-image:
+      radial-gradient(circle at 25% 25%, rgba(176,56,40,.018) 1px, transparent 2px),
+      radial-gradient(circle at 75% 75%, rgba(26,26,26,.025) 1px, transparent 2px);
+    background-size: 7px 7px, 11px 11px;
+  }
+  .app {
+    width: 100%; max-width: 420px; height: 100dvh;
+    display: flex; flex-direction: column;
+    background: var(--paper);
+    box-shadow: 0 0 80px rgba(0,0,0,.04);
+  }
+
+  /* ---- Sumi Header ---- */
+  .header {
+    padding: 56px 32px 0;
+    flex-shrink: 0;
+  }
+  .kanji {
+    font-family: var(--serif);
+    font-size: 36px;
+    font-weight: 300;
+    color: var(--ink);
+    letter-spacing: .04em;
+    line-height: 1;
+  }
+  .kanji b {
+    font-weight: 500;
+    color: var(--shu);
+  }
+  .romaji {
+    font-family: var(--sans);
+    font-size: 10px;
+    color: var(--ink-faded);
+    letter-spacing: .3em;
+    text-transform: uppercase;
+    margin-top: 6px;
+    font-weight: 400;
+  }
+  .header-rule {
+    margin: 28px 32px 0;
+    height: 1px; background: var(--rule);
+    position: relative;
+  }
+  .header-rule::after {
+    content: ''; position: absolute;
+    left: 0; top: -1px; height: 3px; width: 24px;
+    background: var(--shu);
+  }
+
+  /* ---- Engine Bar (subtle weight shift) ---- */
+  .engine-bar {
+    padding: 20px 32px 12px;
+    display: flex; gap: 24px;
+    flex-shrink: 0;
+    font-family: var(--serif);
+    font-size: 13px;
+  }
+  .engine-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--ink-faded);
+    font-weight: 300;
+    font-family: inherit;
+    padding: 4px 0;
+    letter-spacing: .04em;
+    transition: all .3s;
+    position: relative;
+  }
+  .engine-btn.active {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .engine-btn.active::before {
+    content: '·';
+    color: var(--shu);
+    margin-right: 6px;
+    font-size: 16px;
+  }
+
+  /* ---- Lang ---- */
+  .lang-bar {
+    padding: 0 32px 20px;
+    display: flex; align-items: baseline; gap: 10px;
+    font-family: var(--serif);
+    flex-shrink: 0;
+  }
+  .lang-tag {
+    font-size: 16px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-weight: 400;
+  }
+  .lang-tag.active { color: var(--ink); font-weight: 500; }
+  .lang-sep { color: var(--rule); font-size: 14px; }
+
+  /* ---- Transcript ---- */
+  .transcript {
+    flex: 1; overflow-y: auto;
+    padding: 0 32px 24px;
+    display: flex; flex-direction: column; gap: 36px;
+  }
+  .transcript::-webkit-scrollbar { width: 0; }
+
+  .source {
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--ink);
+    letter-spacing: .01em;
+  }
+  .source .label {
+    font-family: var(--sans);
+    font-size: 9px;
+    color: var(--ink-faded);
+    letter-spacing: .3em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 12px;
+    font-weight: 400;
+  }
+
+  .target {
+    padding-top: 4px;
+  }
+  .target .label {
+    font-family: var(--sans);
+    font-size: 9px;
+    color: var(--shu);
+    letter-spacing: .3em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+  .target .text {
+    font-family: var(--serif);
+    font-size: 18px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    font-weight: 400;
+  }
+  .target .text::after {
+    content: ''; display: inline-block;
+    width: 1px; height: 18px; background: var(--shu);
+    margin-left: 4px; vertical-align: text-bottom;
+    animation: blink 1.2s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---- Mic (Enso 圆相) ---- */
+  .mic-area {
+    padding: 24px 32px 48px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .mic-btn-wrap {
+    position: relative;
+    width: 96px; height: 96px;
+  }
+  .mic-btn {
+    width: 96px; height: 96px;
+    border-radius: 50%;
+    border: 1px solid var(--ink);
+    background: var(--paper);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .3s;
+    position: relative; z-index: 2;
+  }
+  .mic-btn::before {
+    content: ''; position: absolute;
+    inset: 36px;
+    background: var(--shu);
+    border-radius: 50%;
+    transition: all .3s;
+  }
+  .mic-btn-wrap::after {
+    content: ''; position: absolute;
+    inset: 0;
+    border: 1px solid var(--shu);
+    border-radius: 50%;
+    animation: enso-breathe 2.4s cubic-bezier(.4,0,.2,1) infinite;
+    opacity: 0;
+  }
+  @keyframes enso-breathe {
+    0% { transform: scale(1); opacity: .5; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+  .mic-meta {
+    text-align: right;
+    font-family: var(--serif);
+  }
+  .mic-meta .status {
+    font-size: 13px;
+    color: var(--ink);
+    font-weight: 400;
+    letter-spacing: .02em;
+  }
+  .mic-meta .status::before {
+    content: '— ';
+    color: var(--shu);
+  }
+  .mic-meta .ts {
+    font-family: var(--sans);
+    font-size: 9px;
+    color: var(--ink-faded);
+    letter-spacing: .25em;
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="header">
+    <div class="kanji">実時<b>翻訳</b></div>
+    <div class="romaji">jitsu·ji  hon·yaku</div>
+  </div>
+  <div class="header-rule"></div>
+
+  <div class="engine-bar">
+    <button class="engine-btn">自動</button>
+    <button class="engine-btn active">OpenAI</button>
+    <button class="engine-btn">Qwen + DP4</button>
+  </div>
+
+  <div class="lang-bar">
+    <span class="lang-tag active">中文</span>
+    <span class="lang-sep">＿</span>
+    <span class="lang-tag">English</span>
+    <span class="lang-sep">·</span>
+    <span class="lang-tag">日本語</span>
+  </div>
+
+  <div class="transcript">
+
+    <div class="source">
+      <span class="label">原文 · Source</span>
+      今天天气真不错,<br>我们一会儿去公园散步吧。
+    </div>
+
+    <div class="target">
+      <span class="label">訳 · Translation</span>
+      <div class="text">The weather is lovely today, let's take a walk in the park later</div>
+    </div>
+
+  </div>
+
+  <div class="mic-area">
+    <div class="mic-btn-wrap">
+      <button class="mic-btn"></button>
+    </div>
+    <div class="mic-meta">
+      <div class="status">耳をすます</div>
+      <div class="ts">LISTENING · 03 SEC</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

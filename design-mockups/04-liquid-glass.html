@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 D · Liquid Glass — 实时转译</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --text: #ffffff;
+    --text-soft: rgba(255,255,255,.72);
+    --text-faded: rgba(255,255,255,.4);
+    --glass: rgba(255,255,255,.08);
+    --glass-strong: rgba(255,255,255,.14);
+    --border: rgba(255,255,255,.16);
+    --border-strong: rgba(255,255,255,.28);
+    --accent: #ff5e62;     /* 珊瑚 */
+    --accent2: #50e3c2;    /* 薄荷 */
+    --accent3: #ffd166;    /* 暖黄 */
+    --sans: 'Geist', system-ui, sans-serif;
+    --mono: 'Geist Mono', ui-monospace, monospace;
+    --cn: 'Noto Sans SC', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--sans);
+    color: var(--text);
+    display: flex; justify-content: center; align-items: center;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    /* 多色动态渐变背景 */
+    background:
+      radial-gradient(circle at 20% 0%, #ff5e62 0%, transparent 45%),
+      radial-gradient(circle at 80% 30%, #6a5af9 0%, transparent 45%),
+      radial-gradient(circle at 50% 100%, #50e3c2 0%, transparent 50%),
+      radial-gradient(circle at 0% 70%, #ffd166 0%, transparent 35%),
+      #0a0a16;
+    background-size: 200% 200%;
+    animation: drift 20s ease-in-out infinite alternate;
+  }
+  @keyframes drift {
+    0%   { background-position: 0% 0%, 100% 30%, 50% 100%, 0% 70%; }
+    100% { background-position: 30% 10%, 60% 40%, 70% 80%, 20% 50%; }
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,.35) 100%);
+    pointer-events: none;
+  }
+  .app {
+    width: 100%; max-width: 420px; height: 100dvh;
+    display: flex; flex-direction: column;
+    padding: 16px;
+    gap: 12px;
+    position: relative; z-index: 1;
+  }
+
+  /* ---- Glass card base ---- */
+  .glass {
+    background: var(--glass);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .glass::before {
+    content: ''; position: absolute;
+    inset: 0; pointer-events: none;
+    background: linear-gradient(135deg, rgba(255,255,255,.16) 0%, transparent 30%, transparent 70%, rgba(255,255,255,.04) 100%);
+    border-radius: inherit;
+  }
+
+  /* ---- Header ---- */
+  .header {
+    padding: 28px 24px 20px;
+    display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  .header h1 {
+    font-size: 28px; font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+  .header h1 .gradient {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent3) 50%, var(--accent2) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header .sub {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text-faded);
+    margin-top: 4px;
+    letter-spacing: .02em;
+  }
+  .header-action {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--glass-strong);
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(20px);
+  }
+
+  /* ---- Engine pill ---- */
+  .engine-pill {
+    padding: 6px;
+    display: flex; gap: 4px;
+    background: rgba(0,0,0,.25);
+  }
+  .engine-btn {
+    flex: 1;
+    padding: 10px 12px;
+    border: none; border-radius: 18px;
+    background: transparent;
+    color: var(--text-soft);
+    font-family: inherit; font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    transition: all .25s cubic-bezier(.4,0,.2,1);
+  }
+  .engine-btn.active {
+    background: linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,.08));
+    color: white;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.4),
+      0 4px 12px rgba(0,0,0,.25);
+  }
+  .engine-btn .ico { margin-right: 4px; }
+
+  /* ---- Lang chips ---- */
+  .lang-row {
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .lang-chip {
+    padding: 8px 14px;
+    border-radius: 14px;
+    background: var(--glass-strong);
+    border: 1px solid var(--border);
+    font-size: 13px; font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .lang-chip.active {
+    background: rgba(255,255,255,.22);
+    border-color: var(--border-strong);
+  }
+  .lang-arrow {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 4px 12px rgba(255,94,98,.4);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+  }
+
+  /* ---- Bubbles ---- */
+  .bubbles {
+    flex: 1; overflow-y: auto;
+    padding: 8px 4px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .bubbles::-webkit-scrollbar { width: 0; }
+
+  .bubble {
+    padding: 16px 20px;
+  }
+  .bubble.src {
+    background: var(--glass);
+    backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid var(--border);
+    border-radius: 24px 24px 24px 6px;
+  }
+  .bubble.tgt {
+    background: linear-gradient(135deg, rgba(255,94,98,.28), rgba(80,227,194,.22));
+    backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.32);
+    border-radius: 24px 24px 6px 24px;
+    box-shadow: 0 12px 40px rgba(255,94,98,.18);
+  }
+  .bubble .label {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--text-faded);
+    letter-spacing: .1em; text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .bubble .label .lang-tag {
+    padding: 1px 6px;
+    background: rgba(255,255,255,.18);
+    border-radius: 6px;
+    color: var(--text);
+  }
+  .bubble.src .text {
+    font-family: var(--cn);
+    font-size: 17px; line-height: 1.5;
+    color: var(--text);
+    font-weight: 400;
+  }
+  .bubble.tgt .text {
+    font-size: 16px; line-height: 1.55;
+    color: white;
+    font-weight: 500;
+  }
+  .bubble.tgt .text::after {
+    content: '|'; color: white; opacity: .9;
+    margin-left: 1px;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---- Mic dock ---- */
+  .mic-dock {
+    padding: 12px 12px 12px 18px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .mic-btn {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #ff8a4c);
+    border: none; cursor: pointer;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,.3),
+      0 6px 20px rgba(255,94,98,.5),
+      inset 0 1px 0 rgba(255,255,255,.5);
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    flex-shrink: 0;
+    position: relative;
+    animation: mic-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes mic-pulse {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,.3), 0 6px 20px rgba(255,94,98,.5), inset 0 1px 0 rgba(255,255,255,.5); }
+    50% { box-shadow: 0 0 0 1px rgba(255,255,255,.4), 0 6px 30px rgba(255,94,98,.8), inset 0 1px 0 rgba(255,255,255,.5); }
+  }
+  .mic-btn svg { width: 22px; height: 22px; fill: white; }
+
+  .level {
+    flex: 1;
+    display: flex; gap: 3px; align-items: center; height: 32px;
+  }
+  .level .b {
+    flex: 1;
+    background: linear-gradient(to top, var(--accent2), var(--accent3));
+    border-radius: 2px;
+    height: 30%;
+    animation: lvl 1.2s ease-in-out infinite;
+    box-shadow: 0 0 8px rgba(80,227,194,.4);
+  }
+  .level .b:nth-child(1) { animation-delay: 0s; }
+  .level .b:nth-child(2) { animation-delay: .08s; }
+  .level .b:nth-child(3) { animation-delay: .16s; }
+  .level .b:nth-child(4) { animation-delay: .24s; }
+  .level .b:nth-child(5) { animation-delay: .32s; }
+  .level .b:nth-child(6) { animation-delay: .4s; }
+  .level .b:nth-child(7) { animation-delay: .48s; }
+  .level .b:nth-child(8) { animation-delay: .56s; }
+  .level .b:nth-child(9) { animation-delay: .64s; }
+  .level .b:nth-child(10) { animation-delay: .72s; }
+  @keyframes lvl {
+    0%, 100% { height: 20%; }
+    50% { height: 90%; }
+  }
+  .stop-btn {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--glass-strong);
+    border: 1px solid var(--border-strong);
+    color: white; cursor: pointer;
+    flex-shrink: 0;
+    backdrop-filter: blur(20px);
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="glass header">
+    <div>
+      <h1>实时<span class="gradient">转译</span></h1>
+      <div class="sub">live · 312ms · OPENAI · zh→en</div>
+    </div>
+    <button class="header-action">⚙</button>
+  </div>
+
+  <div class="glass engine-pill">
+    <button class="engine-btn">自动</button>
+    <button class="engine-btn active"><span class="ico">⚡</span>OpenAI</button>
+    <button class="engine-btn">Qwen+DP4</button>
+  </div>
+
+  <div class="glass lang-row">
+    <div class="lang-chip active">🇨🇳 中文</div>
+    <div class="lang-arrow">→</div>
+    <div class="lang-chip">🇬🇧 English</div>
+  </div>
+
+  <div class="bubbles">
+    <div class="bubble src">
+      <div class="label">原文 <span class="lang-tag">ZH</span></div>
+      <div class="text">今天天气真不错,我们一会儿去公园散步吧。</div>
+    </div>
+    <div class="bubble tgt">
+      <div class="label">译文 <span class="lang-tag">EN</span></div>
+      <div class="text">The weather is lovely today, let's take a walk in the park later</div>
+    </div>
+  </div>
+
+  <div class="glass mic-dock">
+    <button class="mic-btn">
+      <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+    </button>
+    <div class="level">
+      <div class="b"></div><div class="b"></div><div class="b"></div><div class="b"></div><div class="b"></div>
+      <div class="b"></div><div class="b"></div><div class="b"></div><div class="b"></div><div class="b"></div>
+    </div>
+    <button class="stop-btn">■</button>
+  </div>
+
+</div>
+
+</body>
+</html>

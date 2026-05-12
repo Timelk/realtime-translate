@@ -8,3 +8,24 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Secrets
+.env
+
+# Runtime artifacts (serve.sh)
+.server.pid
+.server.log
+
+# 用户录音记录 (持久化但不入库)
+recordings/
+
+# SQLite DB (用户 / 会话 / 录音)
+app.db
+app.db-wal
+app.db-shm
+
+# 调试/测试音频
+output.wav
+
+# OMC 多 agent 协作状态
+.omc/

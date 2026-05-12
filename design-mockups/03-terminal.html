@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 C · Terminal — RT-TX v0.3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Major+Mono+Display&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a1410;
+    --bg-deep: #050907;
+    --surface: #0f1f17;
+    --grid: #143824;
+    --green: #4af626;       /* CRT 绿 */
+    --green-dim: #2a8c1c;
+    --green-soft: #a8c39b;  /* 文字 */
+    --amber: #ff9d3a;       /* 警示橙 */
+    --red: #ff3a3a;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --display: 'Major Mono Display', 'JetBrains Mono', monospace;
+    --cn: 'Noto Sans SC', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--mono);
+    background: var(--bg);
+    color: var(--green-soft);
+    display: flex; justify-content: center; align-items: center;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    font-size: 13px;
+    /* CRT 扫描线 */
+    position: relative;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2px,
+      rgba(74,246,38,.025) 2px,
+      rgba(74,246,38,.025) 3px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,.45) 100%);
+    pointer-events: none;
+    z-index: 999;
+  }
+  .app {
+    width: 100%; max-width: 420px; height: 100dvh;
+    display: flex; flex-direction: column;
+    border-left: 1px solid var(--grid);
+    border-right: 1px solid var(--grid);
+    background: var(--bg);
+    position: relative; z-index: 1;
+  }
+
+  /* ---- ASCII Header ---- */
+  .ascii-head {
+    padding: 24px 16px 12px;
+    border-bottom: 1px dashed var(--grid);
+    flex-shrink: 0;
+  }
+  .ascii-head pre {
+    font-family: var(--mono);
+    font-size: 9px;
+    line-height: 1.05;
+    color: var(--green);
+    text-shadow: 0 0 6px rgba(74,246,38,.6);
+    letter-spacing: -.02em;
+  }
+  .ascii-head .sub {
+    margin-top: 8px;
+    font-size: 10px;
+    color: var(--green-dim);
+    letter-spacing: .15em;
+  }
+  .ascii-head .sub b { color: var(--amber); font-weight: 400; }
+
+  /* ---- Status Bar ---- */
+  .status {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--grid);
+    background: var(--surface);
+    display: flex; gap: 14px; align-items: center;
+    font-size: 11px;
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+  .status::-webkit-scrollbar { display: none; }
+  .status .key { color: var(--green-dim); }
+  .status .val { color: var(--green); text-shadow: 0 0 4px rgba(74,246,38,.4); }
+  .status .alert { color: var(--red); animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+
+  /* ---- Engine bar ---- */
+  .engine-bar {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--grid);
+    display: flex; gap: 6px;
+    flex-shrink: 0;
+    font-size: 11px;
+  }
+  .engine-btn {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--grid);
+    color: var(--green-dim);
+    cursor: pointer;
+    padding: 8px 4px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: .05em;
+    transition: all .15s;
+  }
+  .engine-btn:hover { border-color: var(--green-dim); color: var(--green-soft); }
+  .engine-btn.active {
+    background: var(--green);
+    color: var(--bg-deep);
+    border-color: var(--green);
+    text-shadow: none;
+    box-shadow: 0 0 12px rgba(74,246,38,.4), inset 0 0 8px rgba(0,0,0,.3);
+  }
+
+  /* ---- Lang ---- */
+  .lang {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--grid);
+    display: flex; gap: 8px; align-items: center;
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+  .lang .arrow { color: var(--amber); }
+  .lang .tag {
+    color: var(--green-soft); cursor: pointer;
+    padding: 2px 6px;
+    border: 1px solid transparent;
+  }
+  .lang .tag.active {
+    border-color: var(--green); color: var(--green);
+    text-shadow: 0 0 4px rgba(74,246,38,.4);
+  }
+
+  /* ---- Transcript ---- */
+  .transcript {
+    flex: 1; overflow-y: auto;
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .transcript::-webkit-scrollbar { width: 0; }
+
+  .line { font-family: var(--mono); }
+  .line .prefix {
+    color: var(--green-dim);
+    font-size: 10px;
+    letter-spacing: .1em;
+  }
+  .line .prefix b { color: var(--amber); font-weight: 500; }
+  .line.src .text {
+    font-family: var(--cn);
+    font-size: 17px; line-height: 1.5;
+    color: var(--green-soft);
+    margin-top: 4px;
+  }
+  .line.tgt .text {
+    font-family: var(--mono);
+    font-size: 14px; line-height: 1.55;
+    color: var(--green);
+    margin-top: 4px;
+    text-shadow: 0 0 4px rgba(74,246,38,.3);
+  }
+  .line.tgt .text::after {
+    content: '█'; color: var(--green);
+    animation: blink 1s infinite;
+    margin-left: 1px;
+  }
+
+  /* ---- Wave Mic ---- */
+  .mic-row {
+    padding: 14px 16px 16px;
+    border-top: 1px solid var(--grid);
+    background: var(--surface);
+    display: flex; align-items: center; gap: 14px;
+    flex-shrink: 0;
+  }
+  .rec-btn {
+    width: 76px;
+    background: var(--red);
+    color: white;
+    border: none; cursor: pointer;
+    padding: 12px 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .15em;
+    font-weight: 500;
+    box-shadow:
+      0 0 12px rgba(255,58,58,.6),
+      inset 0 0 6px rgba(255,255,255,.15);
+    animation: rec-blink 1.5s infinite;
+  }
+  @keyframes rec-blink {
+    0%, 100% { box-shadow: 0 0 12px rgba(255,58,58,.6), inset 0 0 6px rgba(255,255,255,.15); }
+    50% { box-shadow: 0 0 24px rgba(255,58,58,.9), inset 0 0 12px rgba(255,255,255,.25); }
+  }
+
+  .wave {
+    flex: 1;
+    display: flex; gap: 2px; align-items: end;
+    height: 36px;
+  }
+  .bar {
+    flex: 1;
+    background: linear-gradient(to top, var(--green-dim), var(--green));
+    box-shadow: 0 0 4px rgba(74,246,38,.5);
+    transition: height .12s;
+    height: 20%;
+    animation: wave 1.4s ease-in-out infinite;
+  }
+  .bar:nth-child(1)  { animation-delay: 0s; }
+  .bar:nth-child(2)  { animation-delay: .05s; }
+  .bar:nth-child(3)  { animation-delay: .1s; }
+  .bar:nth-child(4)  { animation-delay: .15s; }
+  .bar:nth-child(5)  { animation-delay: .2s; }
+  .bar:nth-child(6)  { animation-delay: .25s; }
+  .bar:nth-child(7)  { animation-delay: .3s; }
+  .bar:nth-child(8)  { animation-delay: .35s; }
+  .bar:nth-child(9)  { animation-delay: .4s; }
+  .bar:nth-child(10) { animation-delay: .45s; }
+  .bar:nth-child(11) { animation-delay: .5s; }
+  .bar:nth-child(12) { animation-delay: .55s; }
+  .bar:nth-child(13) { animation-delay: .6s; }
+  .bar:nth-child(14) { animation-delay: .65s; }
+  .bar:nth-child(15) { animation-delay: .7s; }
+  .bar:nth-child(16) { animation-delay: .75s; }
+  @keyframes wave {
+    0%, 100% { height: 15%; }
+    25% { height: 80%; }
+    50% { height: 35%; }
+    75% { height: 95%; }
+  }
+  .meter {
+    color: var(--green); font-size: 10px;
+    text-shadow: 0 0 4px rgba(74,246,38,.4);
+    width: 40px; text-align: right;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="ascii-head">
+<pre>┌─[ rt-tx ]──────────────────────────────┐
+│  ▓▓▒░  REALTIME TRANSLATOR  ░▒▓▓       │
+└────────────────────────────────────────┘</pre>
+    <div class="sub">v0.3.1 · model=<b>gpt-realtime-translate</b> · since 2026-05-10</div>
+  </div>
+
+  <div class="status">
+    <span><span class="key">net</span> <span class="val">●●●●○</span></span>
+    <span><span class="key">sess</span> <span class="val">DdwTCRe9oOi7</span></span>
+    <span><span class="key">lat</span> <span class="val">312ms</span></span>
+    <span><span class="key">rec</span> <span class="alert">● LIVE</span></span>
+  </div>
+
+  <div class="engine-bar">
+    <button class="engine-btn">[ AUTO ]</button>
+    <button class="engine-btn active">[ OPENAI ]</button>
+    <button class="engine-btn">[ QWEN+DP4 ]</button>
+  </div>
+
+  <div class="lang">
+    <span class="key">SRC</span>
+    <span class="tag active">zh</span>
+    <span class="arrow">»»</span>
+    <span class="key">TGT</span>
+    <span class="tag active">en</span>
+    <span style="margin-left:auto;color:var(--green-dim);font-size:10px">whisper · 70+lang</span>
+  </div>
+
+  <div class="transcript">
+
+    <div class="line src">
+      <div class="prefix">[12:34:56.789] <b>SRC</b> ← input_transcript.delta</div>
+      <div class="text">今天天气真不错,我们一会儿去公园散步吧。</div>
+    </div>
+
+    <div class="line tgt">
+      <div class="prefix">[12:34:57.024] <b>TGT</b> ← output_transcript.delta · audio 24kHz/PCM16</div>
+      <div class="text">The weather is lovely today, let's take a walk in the park later</div>
+    </div>
+
+  </div>
+
+  <div class="mic-row">
+    <button class="rec-btn">■ STOP</button>
+    <div class="wave">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    </div>
+    <div class="meter">-12dB</div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,67 @@
+{
+  // VS Code 调试配置 — 所有目标统一从 .env 加载 API Key
+  // 选解释器:命令面板 "Python: Select Interpreter" → ./.venv/bin/python
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Web: FastAPI server (uvicorn)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "server:app",
+        "--host", "0.0.0.0",
+        "--port", "8800"
+      ],
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "CLI: ASR stream + 翻译 + 朗读",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/test.py",
+      "args": ["--stream", "-t"],
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "CLI: TTS 单句 (默认翻译到中文)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/test.py",
+      "args": ["--tts", "-t", "Hello world"],
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Verify: OpenAI 端到端翻译 (10s)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/verify_openai.py",
+      "args": [],
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Verify: 探测 OpenAI 支持的目标语言",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/verify_openai.py",
+      "args": ["--probe-langs"],
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    }
+  ]
+}

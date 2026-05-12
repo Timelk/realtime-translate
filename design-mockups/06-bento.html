@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 F · Bento — 实时转译</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hubot+Sans:ital,wdth,wght@0,75..125,300..900&family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e10;
+    --tile: #181820;
+    --tile-2: #20202c;
+    --line: #2c2c3a;
+    --text: #f4f4f6;
+    --dim: #8c8ca0;
+    --c-cyan: #5ee5d8;
+    --c-violet: #b083ff;
+    --c-orange: #ff8a3d;
+    --c-pink: #ff5896;
+    --sans: 'Hubot Sans', system-ui, sans-serif;
+    --mono: 'DM Mono', ui-monospace, monospace;
+    --cn: 'Noto Sans SC', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    display: flex; justify-content: center; align-items: center;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    background-image:
+      radial-gradient(rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .app {
+    width: 100%; max-width: 420px; height: 100dvh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto 1fr 1fr auto;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .tile {
+    background: var(--tile);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .tile.glow-c { box-shadow: 0 0 0 1px rgba(94,229,216,.18), 0 8px 24px rgba(94,229,216,.06); }
+  .tile.glow-v { box-shadow: 0 0 0 1px rgba(176,131,255,.18), 0 8px 24px rgba(176,131,255,.06); }
+  .tile.glow-o { box-shadow: 0 0 0 1px rgba(255,138,61,.18), 0 8px 24px rgba(255,138,61,.06); }
+
+  /* ---- Tile 1: Brand (col 1-2) ---- */
+  .brand {
+    grid-column: 1 / 3;
+    background: linear-gradient(135deg, var(--tile) 0%, var(--tile-2) 100%);
+    padding: 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .brand h1 {
+    font-size: 38px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: .95;
+    font-variation-settings: 'wdth' 90;
+  }
+  .brand h1 .wide {
+    font-variation-settings: 'wdth' 125;
+    font-weight: 300;
+    color: var(--c-cyan);
+    display: block;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+  .brand .meta {
+    text-align: right;
+  }
+  .brand .meta .num {
+    font-family: var(--mono);
+    font-size: 32px;
+    font-weight: 500;
+    color: var(--c-orange);
+    line-height: 1;
+  }
+  .brand .meta .lbl {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--dim);
+    letter-spacing: .15em;
+    margin-top: 4px;
+  }
+
+  /* ---- Tile 2: Engine (col 1) ---- */
+  .engine-tile {
+    grid-column: 1 / 3;
+  }
+  .engine-tile .ttl {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--dim);
+    letter-spacing: .2em; text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .engine-tile .row {
+    display: flex; gap: 6px;
+  }
+  .engine-tile .btn {
+    flex: 1;
+    padding: 10px 8px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--tile-2);
+    color: var(--dim);
+    font-family: inherit; font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    font-variation-settings: 'wdth' 100;
+  }
+  .engine-tile .btn.active {
+    background: var(--c-violet);
+    color: var(--bg);
+    border-color: var(--c-violet);
+    box-shadow: 0 0 16px rgba(176,131,255,.4);
+  }
+
+  /* ---- Tile 3: Source bubble (col 1-2) ---- */
+  .src-tile {
+    grid-column: 1 / 3;
+    background: var(--tile);
+    padding: 18px 20px;
+  }
+  .src-tile::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; height: 100%; width: 3px;
+    background: var(--c-cyan);
+  }
+  .src-tile .label {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--c-cyan);
+    letter-spacing: .2em; text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .src-tile .label::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(to right, var(--c-cyan), transparent);
+  }
+  .src-tile .text {
+    font-family: var(--cn);
+    font-size: 18px; line-height: 1.5;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* ---- Tile 4: Target bubble (col 1-2) ---- */
+  .tgt-tile {
+    grid-column: 1 / 3;
+    background: linear-gradient(135deg, rgba(176,131,255,.1), rgba(255,88,150,.08));
+    padding: 18px 20px;
+  }
+  .tgt-tile::before {
+    content: ''; position: absolute;
+    top: 0; right: 0; height: 100%; width: 3px;
+    background: var(--c-violet);
+  }
+  .tgt-tile .label {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--c-violet);
+    letter-spacing: .2em; text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+    flex-direction: row-reverse;
+  }
+  .tgt-tile .label::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(to left, var(--c-violet), transparent);
+  }
+  .tgt-tile .text {
+    font-size: 16px; line-height: 1.6;
+    color: var(--text);
+    font-weight: 500;
+    font-variation-settings: 'wdth' 95;
+  }
+  .tgt-tile .text::after {
+    content: '▌'; color: var(--c-violet);
+    margin-left: 2px;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---- Bottom row: 2 tiles ---- */
+  .lang-tile {
+    grid-column: 1;
+    display: flex; flex-direction: column; gap: 4px;
+    justify-content: center;
+  }
+  .lang-tile .ttl {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--dim);
+    letter-spacing: .2em; text-transform: uppercase;
+  }
+  .lang-tile .pair {
+    font-size: 16px;
+    font-weight: 700;
+    margin-top: 2px;
+    font-variation-settings: 'wdth' 100;
+  }
+  .lang-tile .pair .arrow { color: var(--c-orange); }
+  .lang-tile .meta {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--dim);
+    margin-top: 4px;
+  }
+
+  .mic-tile {
+    grid-column: 2;
+    padding: 0;
+    background: var(--c-orange);
+    border-color: var(--c-orange);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--bg);
+    position: relative;
+    box-shadow: 0 0 24px rgba(255,138,61,.4);
+    animation: mic-glow 1.6s ease-in-out infinite;
+  }
+  @keyframes mic-glow {
+    0%, 100% { box-shadow: 0 0 24px rgba(255,138,61,.4); }
+    50% { box-shadow: 0 0 40px rgba(255,138,61,.7); }
+  }
+  .mic-tile::before {
+    content: ''; position: absolute;
+    inset: 6px;
+    border: 2px solid rgba(0,0,0,.15);
+    border-radius: 14px;
+  }
+  .mic-tile .ico {
+    width: 38px; height: 38px;
+    fill: var(--bg);
+  }
+  .mic-tile .lbl {
+    position: absolute;
+    bottom: 8px; right: 12px;
+    font-family: var(--mono); font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .15em;
+  }
+
+  /* ---- Status bar fixed bottom ---- */
+  .status {
+    grid-column: 1 / 3;
+    padding: 10px 14px;
+    background: var(--tile);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--dim);
+    display: flex; gap: 14px; align-items: center;
+    overflow-x: auto;
+  }
+  .status::-webkit-scrollbar { display: none; }
+  .status .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--c-cyan);
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .status b { color: var(--text); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Brand tile -->
+  <div class="tile brand">
+    <h1>
+      实时
+      <span class="wide">Translator</span>
+    </h1>
+    <div class="meta">
+      <div class="num">312</div>
+      <div class="lbl">MS LATENCY</div>
+    </div>
+  </div>
+
+  <!-- Engine tile -->
+  <div class="tile engine-tile glow-v">
+    <div class="ttl">Engine</div>
+    <div class="row">
+      <button class="btn">自动</button>
+      <button class="btn active">⚡ OpenAI</button>
+      <button class="btn">Qwen+DP4</button>
+    </div>
+  </div>
+
+  <!-- Source bubble -->
+  <div class="tile src-tile glow-c">
+    <div class="label">原文 · ZH</div>
+    <div class="text">今天天气真不错,我们一会儿去公园散步吧。</div>
+  </div>
+
+  <!-- Target bubble -->
+  <div class="tile tgt-tile">
+    <div class="label">译文 · EN</div>
+    <div class="text">The weather is lovely today, let's take a walk in the park later</div>
+  </div>
+
+  <!-- Lang tile -->
+  <div class="tile lang-tile">
+    <div class="ttl">Languages</div>
+    <div class="pair">中文 <span class="arrow">→</span> English</div>
+    <div class="meta">tap to swap</div>
+  </div>
+
+  <!-- Mic tile (square button) -->
+  <div class="tile mic-tile glow-o">
+    <svg class="ico" viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+    <div class="lbl">REC</div>
+  </div>
+
+  <!-- Status -->
+  <div class="status">
+    <span class="dot"></span>
+    <span>session <b>DdwTCRe9</b></span>
+    <span>·</span>
+    <span>24kHz/PCM16</span>
+    <span>·</span>
+    <span><b>$0.034</b>/min</span>
+    <span>·</span>
+    <span>03s elapsed</span>
+  </div>
+
+</div>
+
+</body>
+</html>

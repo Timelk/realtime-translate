@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 E · Soft Pastel — 实时转译</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Caveat:wght@500;600&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fef6e8;            /* 奶油米黄 */
+    --bg-deep: #f5edd9;
+    --ink: #2b1f12;           /* 深咖墨 */
+    --ink-soft: #6b5d49;
+    --ink-faded: #b3a690;
+    --pink: #ffb5b8;          /* 粉橘 */
+    --mint: #b6e3c8;          /* 薄荷 */
+    --sky: #c5d8f4;           /* 天蓝 */
+    --coral: #ff6b5b;         /* 珊瑚强调 */
+    --shadow: 0 6px 20px rgba(43,31,18,.08);
+    --shadow-deep: 0 14px 36px rgba(43,31,18,.12);
+    --sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --hand: 'Caveat', cursive;
+    --cn: 'Noto Sans SC', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    display: flex; justify-content: center; align-items: center;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .app {
+    width: 100%; max-width: 420px; height: 100dvh;
+    display: flex; flex-direction: column;
+    padding: 16px 14px;
+    gap: 12px;
+    background: var(--bg);
+    position: relative;
+  }
+  /* 装饰圆 */
+  .app::before {
+    content: ''; position: absolute;
+    top: -60px; right: -60px;
+    width: 180px; height: 180px;
+    background: var(--pink);
+    border-radius: 50%;
+    opacity: .35;
+    z-index: 0;
+    filter: blur(2px);
+  }
+  .app::after {
+    content: ''; position: absolute;
+    bottom: 100px; left: -40px;
+    width: 120px; height: 120px;
+    background: var(--mint);
+    border-radius: 50%;
+    opacity: .4;
+    z-index: 0;
+    filter: blur(2px);
+  }
+  .app > * { position: relative; z-index: 1; }
+
+  /* ---- Header ---- */
+  .header {
+    padding: 14px 14px 4px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .header h1 {
+    font-size: 32px; font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .header h1 .hand {
+    font-family: var(--hand);
+    color: var(--coral);
+    font-weight: 600;
+    font-size: 38px;
+    margin-left: -2px;
+    transform: rotate(-4deg);
+    display: inline-block;
+  }
+  .header .sub {
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-top: 6px;
+    font-weight: 500;
+  }
+  .header .sub b { color: var(--coral); }
+  .gear {
+    width: 44px; height: 44px;
+    background: white; border: none;
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    font-size: 20px;
+  }
+
+  /* ---- Engine cards ---- */
+  .engines {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px; padding: 0 4px;
+  }
+  .engine-card {
+    background: white;
+    border: 2px solid transparent;
+    border-radius: 18px;
+    padding: 12px 8px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: all .25s cubic-bezier(.4,0,.2,1);
+    text-align: center;
+  }
+  .engine-card .ico {
+    font-size: 22px;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .engine-card .name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .engine-card.active {
+    background: var(--coral);
+    border-color: var(--coral);
+    box-shadow: var(--shadow-deep), 0 0 0 4px rgba(255,107,91,.18);
+    transform: translateY(-2px);
+  }
+  .engine-card.active .name { color: white; }
+
+  /* ---- Lang ---- */
+  .lang {
+    background: white;
+    padding: 12px 16px;
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: space-around;
+    margin: 0 4px;
+  }
+  .lang .item {
+    flex: 1; text-align: center;
+    cursor: pointer;
+  }
+  .lang .item .flag { font-size: 22px; display: block; }
+  .lang .item .label {
+    font-size: 11px; font-weight: 600;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  .lang .swap {
+    width: 36px; height: 36px;
+    background: var(--mint);
+    border-radius: 50%; border: none;
+    color: var(--ink); font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(182,227,200,.5);
+  }
+
+  /* ---- Bubbles ---- */
+  .bubbles {
+    flex: 1; overflow-y: auto;
+    padding: 6px 4px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .bubbles::-webkit-scrollbar { width: 0; }
+
+  .bubble {
+    padding: 18px 20px;
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+  }
+  .bubble.src {
+    background: white;
+    border-bottom-left-radius: 8px;
+    align-self: flex-start;
+    max-width: 92%;
+  }
+  .bubble.tgt {
+    background: linear-gradient(135deg, #fff 0%, var(--pink) 200%);
+    border-bottom-right-radius: 8px;
+    align-self: flex-end;
+    max-width: 92%;
+    border: 2px solid var(--coral);
+  }
+  .bubble .label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-faded);
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .bubble.tgt .label { color: var(--coral); }
+  .bubble .label .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--mint);
+  }
+  .bubble.tgt .label .dot { background: var(--coral); }
+  .bubble.src .text {
+    font-family: var(--cn);
+    font-size: 17px; line-height: 1.55;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .bubble.tgt .text {
+    font-size: 16px; line-height: 1.55;
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .bubble.tgt .text::after {
+    content: '|'; color: var(--coral);
+    margin-left: 2px;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---- Mic ---- */
+  .mic-area {
+    padding: 14px 4px 4px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .mic-btn {
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    background: linear-gradient(160deg, var(--coral), #ff8a5c);
+    border: none; cursor: pointer;
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    box-shadow:
+      0 8px 28px rgba(255,107,91,.5),
+      inset 0 -4px 12px rgba(0,0,0,.12),
+      inset 0 4px 6px rgba(255,255,255,.3);
+    position: relative;
+  }
+  .mic-btn::before {
+    content: ''; position: absolute;
+    inset: -8px;
+    border: 3px solid var(--coral);
+    border-radius: 50%;
+    opacity: 0;
+    animation: ring 1.6s ease-out infinite;
+  }
+  @keyframes ring {
+    0% { transform: scale(.85); opacity: .6; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+  .mic-btn svg { width: 28px; height: 28px; fill: white; }
+
+  .mic-info {
+    flex: 1;
+    background: white;
+    padding: 14px 18px;
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+  }
+  .mic-info .title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .mic-info .title .live {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: var(--coral);
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: blink 1.2s infinite;
+  }
+  .mic-info .meta {
+    font-size: 11px;
+    color: var(--ink-faded);
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  .mic-info .meta b { color: var(--coral); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="header">
+    <div>
+      <h1>实时<span class="hand">转译</span></h1>
+      <div class="sub">让<b>每个声音</b>都被听懂</div>
+    </div>
+    <button class="gear">⚙</button>
+  </div>
+
+  <div class="engines">
+    <div class="engine-card">
+      <span class="ico">✨</span>
+      <span class="name">自动</span>
+    </div>
+    <div class="engine-card active">
+      <span class="ico">⚡</span>
+      <span class="name">OpenAI</span>
+    </div>
+    <div class="engine-card">
+      <span class="ico">🌀</span>
+      <span class="name">Qwen+DP4</span>
+    </div>
+  </div>
+
+  <div class="lang">
+    <div class="item">
+      <span class="flag">🇨🇳</span>
+      <div class="label">中文</div>
+    </div>
+    <button class="swap">⇄</button>
+    <div class="item">
+      <span class="flag">🇬🇧</span>
+      <div class="label">English</div>
+    </div>
+  </div>
+
+  <div class="bubbles">
+    <div class="bubble src">
+      <div class="label"><span class="dot"></span>原文 · 中文</div>
+      <div class="text">今天天气真不错,我们一会儿去公园散步吧。</div>
+    </div>
+    <div class="bubble tgt">
+      <div class="label"><span class="dot"></span>译文 · English</div>
+      <div class="text">The weather is lovely today, let's take a walk in the park later</div>
+    </div>
+  </div>
+
+  <div class="mic-area">
+    <button class="mic-btn">
+      <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+    </button>
+    <div class="mic-info">
+      <div class="title"><span class="live"></span>正在聆听…</div>
+      <div class="meta">已用 <b>OpenAI 直译</b> · 03 秒</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

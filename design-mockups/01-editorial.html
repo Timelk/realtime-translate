@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 A · Editorial — 实时转译</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..700,0..100&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0c0a;
+    --surface: #16140f;
+    --rule: #2a261d;
+    --text: #ebe2c8;
+    --dim: #8a8175;
+    --red: #c8523c;       /* 朱红 - 标题/警示 */
+    --gold: #d4a45e;      /* 暖黄 - 重点 */
+    --serif: 'Fraunces', 'Times New Roman', serif;
+    --sans: 'IBM Plex Sans', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    display: flex; justify-content: center; align-items: center;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    /* 报纸纸纹噪点 */
+    background-image:
+      radial-gradient(rgba(212,164,94,.025) 1px, transparent 1px),
+      radial-gradient(rgba(200,82,60,.015) 1px, transparent 1px);
+    background-size: 3px 3px, 5px 5px;
+    background-position: 0 0, 1px 1px;
+  }
+  .app {
+    width: 100%; max-width: 420px; height: 100dvh;
+    display: flex; flex-direction: column;
+  }
+
+  /* ---- Masthead (报纸刊头) ---- */
+  .masthead {
+    padding: 36px 24px 16px;
+    border-bottom: 1px solid var(--rule);
+    display: flex; align-items: flex-end; justify-content: space-between;
+  }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-size: 30px;
+    font-weight: 500;
+    line-height: .95;
+    letter-spacing: -0.015em;
+    font-variation-settings: 'opsz' 144, 'SOFT' 50;
+  }
+  .masthead h1 em {
+    font-style: italic;
+    color: var(--red);
+    font-variation-settings: 'opsz' 144, 'SOFT' 100;
+  }
+  .masthead .issue {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--dim); text-align: right;
+    line-height: 1.4;
+  }
+  .masthead .issue b { color: var(--gold); font-weight: 500; }
+
+  /* ---- Status Strip (终端味状态条) ---- */
+  .status-strip {
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 11px;
+    color: var(--dim);
+    display: flex; gap: 14px; align-items: center;
+    overflow-x: auto;
+  }
+  .status-strip::-webkit-scrollbar { display: none; }
+  .status-strip .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--text);
+  }
+  .status-strip .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--red); animation: blink 1.2s infinite;
+  }
+  .status-strip .pill.ok .dot { background: var(--gold); }
+  @keyframes blink { 50% { opacity: .3; } }
+
+  /* ---- Engine Bar (类报纸 section nav) ---- */
+  .engine-bar {
+    display: flex; padding: 0 24px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .engine-btn {
+    flex: 1; padding: 14px 0;
+    background: none; border: none;
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--dim); cursor: pointer;
+    position: relative;
+    transition: color .2s;
+  }
+  .engine-btn::after {
+    content: ''; position: absolute;
+    left: 50%; bottom: -1px;
+    width: 0; height: 2px; background: var(--red);
+    transition: all .25s cubic-bezier(.4,0,.2,1);
+    transform: translateX(-50%);
+  }
+  .engine-btn.active { color: var(--text); }
+  .engine-btn.active::after { width: 60%; }
+  .engine-btn:hover { color: var(--gold); }
+
+  /* ---- Lang Bar (报头副标题风) ---- */
+  .lang-bar {
+    padding: 16px 24px 0;
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--serif); font-size: 14px;
+  }
+  .lang-tag {
+    color: var(--dim); cursor: pointer;
+    font-style: italic;
+    font-variation-settings: 'opsz' 24, 'SOFT' 80;
+    transition: color .2s;
+  }
+  .lang-tag.active { color: var(--gold); }
+  .lang-arrow { color: var(--rule); font-family: var(--mono); }
+
+  /* ---- Transcript (印刷栏式) ---- */
+  .transcript {
+    flex: 1; overflow-y: auto;
+    padding: 24px;
+    display: flex; flex-direction: column; gap: 28px;
+  }
+  .transcript::-webkit-scrollbar { width: 0; }
+
+  .quote-source { position: relative; }
+  .quote-source .meta {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--red);
+    letter-spacing: .15em; text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .quote-source .meta::before {
+    content: ''; width: 18px; height: 1px; background: var(--red);
+  }
+  .quote-source .text {
+    font-family: var(--serif);
+    font-size: 22px; line-height: 1.35;
+    font-weight: 400;
+    font-variation-settings: 'opsz' 36, 'SOFT' 30;
+  }
+
+  .quote-target { padding-left: 18px; border-left: 2px solid var(--gold); }
+  .quote-target .meta {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--gold);
+    letter-spacing: .15em; text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .quote-target .text {
+    font-family: var(--sans);
+    font-size: 16px; line-height: 1.55;
+    color: var(--text);
+  }
+  .quote-target .text::after {
+    content: '▌'; color: var(--gold);
+    margin-left: 2px;
+    animation: blink 1s infinite;
+  }
+
+  /* ---- Mic (墨水水波) ---- */
+  .mic-area {
+    padding: 24px 24px 36px;
+    border-top: 1px solid var(--rule);
+    display: flex; align-items: center; gap: 18px;
+  }
+  .mic-btn {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: var(--red); color: var(--text);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    box-shadow:
+      0 0 0 1px var(--red),
+      0 0 0 8px rgba(200,82,60,.18),
+      0 0 0 22px rgba(200,82,60,.05);
+    animation: ink-drop 1.6s cubic-bezier(.4,0,.2,1) infinite;
+  }
+  @keyframes ink-drop {
+    0%, 100% { box-shadow: 0 0 0 1px var(--red), 0 0 0 8px rgba(200,82,60,.18), 0 0 0 22px rgba(200,82,60,.05); }
+    50% { box-shadow: 0 0 0 1px var(--red), 0 0 0 14px rgba(200,82,60,.25), 0 0 0 36px rgba(200,82,60,0); }
+  }
+  .mic-btn svg { width: 24px; height: 24px; fill: var(--text); }
+
+  .mic-meta { flex: 1; }
+  .mic-meta .label {
+    font-family: var(--serif); font-size: 16px;
+    font-weight: 500;
+    font-variation-settings: 'opsz' 36, 'SOFT' 50;
+  }
+  .mic-meta .hint {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--dim);
+    margin-top: 4px;
+    letter-spacing: .08em;
+  }
+  .mic-meta .hint b { color: var(--gold); font-weight: 500; }
+
+  .mic-stop {
+    width: 36px; height: 36px;
+    border: 1px solid var(--rule);
+    background: none; color: var(--dim);
+    cursor: pointer; border-radius: 50%;
+    font-family: var(--mono); font-size: 11px;
+    transition: all .2s;
+  }
+  .mic-stop:hover { color: var(--red); border-color: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="masthead">
+    <h1>The <em>Translator</em><br>Realtime</h1>
+    <div class="issue">
+      <div>VOL. <b>I</b> · ISSUE 03</div>
+      <div>2026 · MAY · 10</div>
+    </div>
+  </div>
+
+  <div class="status-strip">
+    <span class="pill"><span class="dot"></span>LIVE</span>
+    <span class="pill ok"><span class="dot"></span>OPENAI · 24KHZ</span>
+    <span style="color:var(--dim)">→ 312ms · 1 sess</span>
+  </div>
+
+  <div class="engine-bar">
+    <button class="engine-btn">Auto</button>
+    <button class="engine-btn active">⚡ OpenAI</button>
+    <button class="engine-btn">Qwen + DP4</button>
+  </div>
+
+  <div class="lang-bar">
+    <span class="lang-tag active">中文</span>
+    <span class="lang-arrow">⟶</span>
+    <span class="lang-tag">English</span>
+    <span class="lang-arrow">·</span>
+    <span class="lang-tag">日本語</span>
+    <span class="lang-arrow">·</span>
+    <span class="lang-tag">Français</span>
+  </div>
+
+  <div class="transcript">
+
+    <div class="quote-source">
+      <div class="meta">Source · Detected: ZH</div>
+      <div class="text">今天天气真不错,我们一会儿去公园散步吧。</div>
+    </div>
+
+    <div class="quote-target">
+      <div class="meta">Translation · EN</div>
+      <div class="text">The weather is lovely today, let's take a walk in the park later</div>
+    </div>
+
+  </div>
+
+  <div class="mic-area">
+    <button class="mic-btn">
+      <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+    </button>
+    <div class="mic-meta">
+      <div class="label">Listening…</div>
+      <div class="hint">TAP MIC TO STOP · ENGINE <b>⚡ OPENAI</b></div>
+    </div>
+    <button class="mic-stop">■</button>
+  </div>
+
+</div>
+
+</body>
+</html>

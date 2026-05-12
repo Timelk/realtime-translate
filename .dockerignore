@@ -1,0 +1,17 @@
+.git
+.venv
+__pycache__
+*.pyc
+output.wav
+README.md
+test.py
+main.py
+uv.lock
+app.db
+app.db-*
+data
+design-mockups
+.server.log
+.server.pid
+.omc
+.vscode
