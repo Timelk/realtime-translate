@@ -114,8 +114,13 @@
           transform: scale(1.1);
         }
         .subtitle-text {
-          font-size: 24px !important;
           line-height: 1.55 !important;
+        }
+        .cap-current {
+          font-size: 20px !important;
+        }
+        .cap-old {
+          font-size: 13px !important;
         }
         .mic {
           width: 60px !important;
@@ -698,7 +703,7 @@
         transform-origin: left center;
       }
       .cap-current {
-        font-size: 22px;
+        font-size: 18px;
         font-weight: 700;
         color: var(--ink);
         letter-spacing: -0.1px;
@@ -711,20 +716,20 @@
       }
       .cap-current .ch {
         display: inline-block;
-        animation: cap-char-in 220ms var(--e-out) both;
+        animation: cap-char-in 40ms linear both;
         white-space: pre;
       }
       .cap-fade-out {
         animation: cap-fade-out var(--d-base) var(--e-in) both !important;
       }
       @keyframes cap-char-in {
-        from { opacity: 0; transform: translateY(6px); }
-        to { opacity: 1; transform: translateY(0); }
+        from { opacity: 0; }
+        to { opacity: 1; }
       }
       @keyframes cap-old-settle {
         from {
           opacity: 1;
-          font-size: 22px;
+          font-size: 18px;
           font-weight: 700;
           color: var(--ink);
           transform: translateY(6px);
@@ -2639,12 +2644,8 @@
           }
           _capState.currentText = "";
           _capState.renderedDoneCount = newDoneCount;
-          // 限 3 条, 多出的 fade-out + remove
-          while (_capState.keptDoneEls.length > 3) {
-            const drop = _capState.keptDoneEls.shift();
-            drop.classList.add("cap-fade-out");
-            setTimeout(() => drop.remove(), 260);
-          }
+          // 历史全部保留在 DOM, 用户可向上滚动 .transcript 查看
+          // (不再 fade-out 老句子)
         }
 
         // 2. 当前 turn 文本
@@ -2674,23 +2675,23 @@
           if (currentText === old) {
             // no-op
           } else if (currentText.startsWith(old)) {
-            // 追加新字符: 每字符独立 span + stagger animation-delay
+            // 追加新字符: OpenAI delta 流式高频到达, 不再 stagger, 来什么显什么
+            // (字符到达时间本身已经错开, 视觉就是流式打字效果)
             const added = Array.from(currentText.slice(old.length));
-            added.forEach((ch, i) => {
+            added.forEach((ch) => {
               const span = document.createElement("span");
               span.className = "ch";
               span.textContent = ch;
-              span.style.animationDelay = i * 18 + "ms";
               cur.appendChild(span);
             });
           } else {
-            // 文本不连续 → 整体替换 (incremental 来错 / src→tgt 切换)
+            // 文本不连续 → 整体替换 (DashScope 整句到达 / src→tgt 切换)
+            // 整段一次到位, 不再 stagger (跟得上语音节奏更重要)
             cur.innerHTML = "";
-            Array.from(currentText).forEach((ch, i) => {
+            Array.from(currentText).forEach((ch) => {
               const span = document.createElement("span");
               span.className = "ch";
               span.textContent = ch;
-              span.style.animationDelay = i * 14 + "ms";
               cur.appendChild(span);
             });
           }
