@@ -32,6 +32,27 @@
         --mono: "DM Mono", ui-monospace, monospace;
         --hand: "Caveat", cursive;
         --cn: "Noto Sans SC", sans-serif;
+        /* Motion design tokens — 全局 duration + easing, 统一节奏 */
+        --d-fast: 160ms;   /* 微交互, hover, press */
+        --d-base: 240ms;   /* 标准 transition */
+        --d-slow: 360ms;   /* 复杂 / 重要 transition */
+        --d-slower: 480ms; /* 大型 splash / view 切换 */
+        --e-out: cubic-bezier(0.22, 1, 0.36, 1);          /* expo-out, 入场丝滑 */
+        --e-in: cubic-bezier(0.5, 0, 1, 0.4);             /* expo-in, 退场干脆 */
+        --e-spring: cubic-bezier(0.2, 0.9, 0.25, 1.15);   /* 弹簧 (按压/toast) */
+        --e-standard: cubic-bezier(0.4, 0, 0.2, 1);       /* Material standard */
+        --stagger: 45ms;  /* 列表/元素错位时间 */
+      }
+      /* 系统级 prefers-reduced-motion → 全局动画归零 (a11y 兜底) */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
       }
       * {
         margin: 0;
@@ -186,6 +207,53 @@
       }
       .view.active {
         display: flex;
+        animation: view-enter var(--d-slow) var(--e-out) both;
+      }
+      .view.exiting {
+        display: flex !important;
+        animation: view-exit calc(var(--d-base) * 0.6) var(--e-in) both;
+        pointer-events: none;
+      }
+      @keyframes view-enter {
+        from {
+          opacity: 0;
+          transform: translateY(14px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes view-exit {
+        from {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+      }
+      /* view 内部直接子元素 stagger 入场, 节奏感 */
+      .view.active > * {
+        animation: stagger-fade-up var(--d-base) var(--e-out) both;
+      }
+      .view.active > *:nth-child(1) { animation-delay: 80ms; }
+      .view.active > *:nth-child(2) { animation-delay: 130ms; }
+      .view.active > *:nth-child(3) { animation-delay: 180ms; }
+      .view.active > *:nth-child(4) { animation-delay: 230ms; }
+      .view.active > *:nth-child(5) { animation-delay: 280ms; }
+      .view.active > *:nth-child(6) { animation-delay: 330ms; }
+      .view.active > *:nth-child(7) { animation-delay: 380ms; }
+      @keyframes stagger-fade-up {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       /* ============================================================
@@ -385,7 +453,7 @@
         font-size: 16px;
       }
 
-      /* Engine bar — Notion 文档式 underline */
+      /* Engine bar — Notion 文档式, sliding underline (shared element 共享移动) */
       .engine-bar {
         padding: 6px 22px 0;
         display: flex;
@@ -393,6 +461,7 @@
         border-bottom: 1px solid var(--line);
         flex-shrink: 0;
         background: var(--paper);
+        position: relative;
       }
       .engine-btn {
         padding: 10px 14px;
@@ -403,17 +472,33 @@
         font-size: 13px;
         font-weight: 500;
         cursor: pointer;
-        border-bottom: 2px solid transparent;
         margin-bottom: -1px;
-        transition: all 0.2s;
+        position: relative;
       }
       .engine-btn:hover {
         color: var(--ink);
       }
       .engine-btn.active {
         color: var(--ink);
-        border-bottom-color: var(--orange);
         font-weight: 600;
+      }
+      .engine-underline {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 2px;
+        background: var(--orange);
+        border-radius: 2px 2px 0 0;
+        pointer-events: none;
+        width: 0;
+        transition:
+          transform var(--d-base) var(--e-out),
+          width var(--d-base) var(--e-out),
+          opacity var(--d-fast) var(--e-out);
+        opacity: 0;
+      }
+      .engine-underline.visible {
+        opacity: 1;
       }
 
       /* Lang bar — solo only */
@@ -588,16 +673,73 @@
         opacity: 0.5;
       }
 
-      /* ---- Solo 字幕模式 (连续滚显, 不分段, 只展译文) ---- */
+      /* ---- Solo 字幕模式 (Apple Live Captions 风) ---- */
       .subtitle-text {
         font-family: var(--cn);
-        font-size: 22px;
-        line-height: 1.6;
+        line-height: 1.45;
         color: var(--ink);
-        font-weight: 500;
-        white-space: pre-wrap;
-        word-break: break-word;
         padding: 12px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .cap-old,
+      .cap-current {
+        display: block;
+        word-break: break-word;
+        white-space: pre-wrap;
+      }
+      .cap-old {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--ink-soft);
+        opacity: 0.55;
+        animation: cap-old-settle var(--d-slow) var(--e-out) both;
+        transform-origin: left center;
+      }
+      .cap-current {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -0.1px;
+        margin-top: 4px;
+      }
+      .cap-current.cap-placeholder {
+        color: var(--dim);
+        font-style: italic;
+        font-weight: 400;
+      }
+      .cap-current .ch {
+        display: inline-block;
+        animation: cap-char-in 220ms var(--e-out) both;
+        white-space: pre;
+      }
+      .cap-fade-out {
+        animation: cap-fade-out var(--d-base) var(--e-in) both !important;
+      }
+      @keyframes cap-char-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes cap-old-settle {
+        from {
+          opacity: 1;
+          font-size: 22px;
+          font-weight: 700;
+          color: var(--ink);
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 0.55;
+          font-size: 15px;
+          font-weight: 500;
+          color: var(--ink-soft);
+          transform: translateY(0);
+        }
+      }
+      @keyframes cap-fade-out {
+        from { opacity: 0.55; transform: translateY(0) scale(1); max-height: 40px; }
+        to { opacity: 0; transform: translateY(-12px) scale(0.96); max-height: 0; }
       }
       .subtitle-cursor {
         display: inline-block;
@@ -667,6 +809,132 @@
         padding: 40px 12px;
         color: var(--dim);
         font-size: 13px;
+      }
+      /* Skeleton loader (history fetch 期间占位) */
+      .record-skeleton {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .record-skeleton .sk-rows {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+      .record-skeleton .sk-bar {
+        height: 12px;
+        background: linear-gradient(
+          90deg,
+          var(--line) 0%,
+          var(--line-2) 50%,
+          var(--line) 100%
+        );
+        background-size: 200% 100%;
+        border-radius: 6px;
+        animation: sk-shimmer 1.4s linear infinite;
+      }
+      .record-skeleton .sk-title {
+        width: 62%;
+      }
+      .record-skeleton .sk-meta {
+        width: 38%;
+        height: 9px;
+        opacity: 0.65;
+      }
+      .record-skeleton .sk-icon {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: linear-gradient(
+          90deg,
+          var(--line) 0%,
+          var(--line-2) 50%,
+          var(--line) 100%
+        );
+        background-size: 200% 100%;
+        animation: sk-shimmer 1.4s linear infinite;
+        flex-shrink: 0;
+      }
+      @keyframes sk-shimmer {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+      .record-item {
+        animation: stagger-fade-up var(--d-base) var(--e-out) both;
+      }
+      .record-item:nth-child(1) { animation-delay: 0ms; }
+      .record-item:nth-child(2) { animation-delay: 35ms; }
+      .record-item:nth-child(3) { animation-delay: 70ms; }
+      .record-item:nth-child(4) { animation-delay: 105ms; }
+      .record-item:nth-child(5) { animation-delay: 140ms; }
+      .record-item:nth-child(6) { animation-delay: 175ms; }
+      .record-item:nth-child(n + 7) { animation-delay: 210ms; }
+      /* Language picker items stagger 入场 */
+      #langList > div {
+        animation: stagger-fade-up var(--d-fast) var(--e-out) both;
+      }
+      #langList > div:nth-child(1) { animation-delay: 0ms; }
+      #langList > div:nth-child(2) { animation-delay: 20ms; }
+      #langList > div:nth-child(3) { animation-delay: 40ms; }
+      #langList > div:nth-child(4) { animation-delay: 60ms; }
+      #langList > div:nth-child(5) { animation-delay: 80ms; }
+      #langList > div:nth-child(6) { animation-delay: 100ms; }
+      #langList > div:nth-child(7) { animation-delay: 120ms; }
+      #langList > div:nth-child(8) { animation-delay: 140ms; }
+      #langList > div:nth-child(9) { animation-delay: 160ms; }
+      #langList > div:nth-child(10) { animation-delay: 180ms; }
+      #langList > div:nth-child(n + 11) { animation-delay: 200ms; }
+      /* Room members stagger 入场 */
+      .members > * {
+        animation: stagger-fade-up var(--d-base) var(--e-out) both;
+      }
+      .members > *:nth-child(1) { animation-delay: 0ms; }
+      .members > *:nth-child(2) { animation-delay: 35ms; }
+      .members > *:nth-child(3) { animation-delay: 70ms; }
+      .members > *:nth-child(4) { animation-delay: 105ms; }
+      .members > *:nth-child(5) { animation-delay: 140ms; }
+      .members > *:nth-child(n + 6) { animation-delay: 175ms; }
+
+      /* ============================================================
+         真实 FFT 音波 (Web Audio AnalyserNode → 24 根橙→深橙渐变 bar)
+         ============================================================ */
+      .wave-viz {
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 3px;
+        height: 56px;
+        padding: 6px 22px 4px;
+        flex-shrink: 0;
+        opacity: 0;
+        transition: opacity var(--d-base) var(--e-out);
+      }
+      .wave-viz.live {
+        display: flex;
+        opacity: 1;
+      }
+      .wave-bar {
+        width: 4px;
+        flex: 1;
+        max-width: 6px;
+        height: 100%;
+        background: linear-gradient(
+          180deg,
+          var(--orange) 0%,
+          var(--orange-deep) 100%
+        );
+        border-radius: 2px;
+        transform: scaleY(0.06);
+        transform-origin: bottom center;
+        transition: transform 50ms linear;
+        opacity: 0.92;
       }
 
       .bubble {
@@ -847,6 +1115,9 @@
         box-shadow: 0 4px 12px rgba(217, 119, 87, 0.4);
         transition: all 0.25s;
       }
+      .mic {
+        position: relative;
+      }
       .mic:active {
         transform: scale(0.95);
       }
@@ -854,6 +1125,33 @@
         width: 22px;
         height: 22px;
         fill: white;
+        position: relative;
+        z-index: 1;
+      }
+      /* connecting ripple: 2 圈错位辐射环 */
+      .mic.connecting::before,
+      .mic.connecting::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 2px solid rgba(217, 166, 87, 0.55);
+        animation: mic-ripple 1.6s var(--e-out) infinite;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .mic.connecting::after {
+        animation-delay: 0.8s;
+      }
+      @keyframes mic-ripple {
+        0% {
+          transform: scale(1);
+          opacity: 0.7;
+        }
+        100% {
+          transform: scale(2.4);
+          opacity: 0;
+        }
       }
       .mic.recording {
         animation: mic-bp 1.4s ease-in-out infinite;
@@ -990,9 +1288,11 @@
         inset: 0;
         z-index: 100;
         background: rgba(43, 38, 32, 0.45);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
         display: none;
         opacity: 0;
-        transition: opacity 0.25s;
+        transition: opacity var(--d-base) var(--e-out);
         justify-content: center;
         align-items: flex-end;
       }
@@ -1008,12 +1308,31 @@
         border-radius: 24px 24px 0 0;
         padding: 14px 24px 32px;
         overflow-y: auto;
-        animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: panel-enter var(--d-slow) var(--e-spring);
         box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.15);
       }
-      @keyframes slideUp {
+      @keyframes panel-enter {
         from {
           transform: translateY(100%);
+          opacity: 0.4;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      /* 关闭: scrim 反向淡出 + panel 下滑 (60% 时长, 干脆) */
+      .overlay.closing .panel {
+        animation: panel-exit calc(var(--d-base) * 0.6) var(--e-in) forwards;
+      }
+      @keyframes panel-exit {
+        from {
+          transform: translateY(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateY(100%);
+          opacity: 0;
         }
       }
       .panel::-webkit-scrollbar {
@@ -1185,12 +1504,12 @@
         font-weight: 600;
       }
 
-      /* Toast */
+      /* Toast — spring bounce 入场, 上滑退场 */
       .toast {
         position: fixed;
         top: 16px;
         left: 50%;
-        transform: translateX(-50%);
+        transform: translateX(-50%) translateY(-8px) scale(0.85);
         background: var(--ink);
         color: var(--paper);
         padding: 10px 16px;
@@ -1200,14 +1519,148 @@
         z-index: 200;
         opacity: 0;
         pointer-events: none;
-        transition:
-          opacity 0.3s,
-          transform 0.3s;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        will-change: transform, opacity;
       }
       .toast.show {
+        animation: toast-in var(--d-slow) var(--e-spring) forwards;
+      }
+      .toast.hiding {
+        animation: toast-out var(--d-fast) var(--e-in) forwards;
+      }
+      @keyframes toast-in {
+        0% {
+          transform: translateX(-50%) translateY(-8px) scale(0.85);
+          opacity: 0;
+        }
+        55% {
+          transform: translateX(-50%) translateY(10px) scale(1.04);
+          opacity: 1;
+        }
+        100% {
+          transform: translateX(-50%) translateY(8px) scale(1);
+          opacity: 1;
+        }
+      }
+      @keyframes toast-out {
+        from {
+          transform: translateX(-50%) translateY(8px) scale(1);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(-50%) translateY(-10px) scale(0.96);
+          opacity: 0;
+        }
+      }
+
+      /* ============================================================
+         全局按钮 press 反馈 — spring scale, 统一手感
+         ============================================================ */
+      .head-back,
+      .head-act,
+      .engine-btn,
+      .lang-tag,
+      .lang-swap,
+      .dock-act,
+      .btn,
+      .toggle,
+      button {
+        transition:
+          transform var(--d-fast) var(--e-spring),
+          background-color var(--d-fast) var(--e-out),
+          color var(--d-fast) var(--e-out),
+          box-shadow var(--d-fast) var(--e-out),
+          border-color var(--d-fast) var(--e-out);
+      }
+      .head-back:active,
+      .head-act:active,
+      .engine-btn:active:not(:disabled),
+      .lang-tag:active,
+      .lang-swap:active,
+      .dock-act:active,
+      .btn:active:not(:disabled),
+      button:active:not(:disabled) {
+        transform: scale(0.96);
+      }
+
+      /* ============================================================
+         SPLASH (首次访问 1.2s 品牌时刻)
+         ============================================================ */
+      #splash {
+        position: fixed;
+        inset: 0;
+        background: linear-gradient(180deg, #fdfaf3 0%, #f5f0e3 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        gap: 14px;
         opacity: 1;
-        transform: translateX(-50%) translateY(8px);
+        transition: opacity var(--d-base) var(--e-in),
+                    transform var(--d-base) var(--e-in);
+      }
+      #splash.fade-out {
+        opacity: 0;
+        transform: scale(1.02);
+        pointer-events: none;
+      }
+      #splash .logo {
+        font-size: 56px;
+        line-height: 1;
+        animation: splash-logo-in 360ms var(--e-out) both;
+        filter: drop-shadow(0 8px 24px rgba(217, 119, 87, 0.25));
+      }
+      #splash .title {
+        font-family: var(--sans);
+        font-weight: 700;
+        font-size: 22px;
+        letter-spacing: -0.3px;
+        color: var(--ink);
+        margin-top: 4px;
+        animation: splash-fade-up 420ms var(--e-out) 120ms both;
+      }
+      #splash .subtitle {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--dim);
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        animation: splash-fade-up 420ms var(--e-out) 200ms both;
+      }
+      #splash .loader {
+        width: 120px;
+        height: 2px;
+        background: rgba(43, 38, 32, 0.06);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 10px;
+        animation: splash-fade-up 360ms var(--e-out) 280ms both;
+      }
+      #splash .loader::after {
+        content: "";
+        display: block;
+        width: 32%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          var(--orange) 0%,
+          var(--orange-deep) 100%
+        );
+        border-radius: 2px;
+        animation: splash-loader 800ms var(--e-out) 320ms both;
+      }
+      @keyframes splash-logo-in {
+        from { opacity: 0; transform: translateY(12px) scale(0.92); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      @keyframes splash-fade-up {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes splash-loader {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(380%); }
       }
     </style>
     <!-- VAD (Silero ONNX) + onnxruntime-web. 在 mic 上做 speech gating, 抑制 ASR 幻觉。
@@ -1216,6 +1669,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.29/dist/bundle.min.js"></script>
   </head>
   <body>
+    <!-- Splash 启动屏 (JS 控制: 首次访问 1.2s, 二次访问立即移除) -->
+    <div id="splash">
+      <div class="logo">🎙</div>
+      <div class="title">实时翻译</div>
+      <div class="subtitle">Realtime Voice Translator</div>
+      <div class="loader"></div>
+    </div>
     <div class="app">
       <!-- ============================================================
        AUTH VIEW (登录 / 注册)
@@ -1419,6 +1879,7 @@
           ></div>
         </div>
 
+        <div class="wave-viz" id="waveSolo"></div>
         <div class="dock">
           <button class="mic" id="micSolo" onclick="toggleMic()">
             <svg viewBox="0 0 24 24">
@@ -1498,6 +1959,7 @@
           </div>
         </div>
 
+        <div class="wave-viz" id="waveRoom"></div>
         <div class="dock">
           <button class="mic" id="micRoom" onclick="toggleMic()">
             <svg viewBox="0 0 24 24">
@@ -1683,6 +2145,37 @@
     </div>
 
     <script>
+      // ============================================================
+      // Splash 启动屏控制 — 首次访问 1.2s 品牌时刻, cookie 记忆
+      // ============================================================
+      (function initSplash() {
+        const SEEN = "splash-seen=1";
+        const el = document.getElementById("splash");
+        if (!el) return;
+        // 二次访问: 立刻移除, 走主页直接渐入
+        if (document.cookie.indexOf(SEEN) !== -1) {
+          el.remove();
+          return;
+        }
+        // 首访: 1.2s 后 fade-out + 280ms 后 remove + 1 年 cookie
+        setTimeout(() => {
+          el.classList.add("fade-out");
+          setTimeout(() => {
+            el.remove();
+            // splash 退场后 force-replay 当前 active view 的入场动画
+            // (splash 期间动画已跑完, 用户没看到)
+            const active = document.querySelector(".view.active");
+            if (active) {
+              active.classList.remove("active");
+              void active.offsetWidth;
+              active.classList.add("active");
+            }
+          }, 280);
+          document.cookie =
+            "splash-seen=1; max-age=31536000; path=/; samesite=lax";
+        }, 1200);
+      })();
+
       // ============================================================
       // State
       // ============================================================
@@ -1906,10 +2399,24 @@
       // View switcher
       // ============================================================
       function show(viewId) {
-        document
-          .querySelectorAll(".view")
-          .forEach((v) => v.classList.remove("active"));
-        document.getElementById(viewId).classList.add("active");
+        if (viewId === currentView) return;
+        const next = document.getElementById(viewId);
+        if (!next) return;
+        const prev = document.querySelector(".view.active");
+        if (prev && prev !== next) {
+          // 退场 144ms (240 * 0.6), 新 view 在 84ms 时就开始 enter, 制造重叠丝滑感
+          prev.classList.remove("active");
+          prev.classList.add("exiting");
+          setTimeout(() => prev.classList.remove("exiting"), 150);
+          setTimeout(() => {
+            next.classList.add("active");
+            // view 切换后, 新 view 的 engine bar 需要重算 underline
+            setTimeout(syncEngineUnderline, 200);
+          }, 90);
+        } else {
+          next.classList.add("active");
+          setTimeout(syncEngineUnderline, 200);
+        }
         currentView = viewId;
       }
 
@@ -2107,27 +2614,105 @@
         _renderSubtitles();
       }
 
+      // Apple Live Captions 风字幕状态 — 增量字符渲染, 避免每次 innerHTML 全量重建造成的闪烁
+      const _capState = {
+        renderedDoneCount: 0, // 已渲染到 DOM 的 done turn 数 (用于 diff)
+        currentText: "", // 已渲染到 .cap-current 的文本前缀
+        keptDoneEls: [], // 当前 DOM 中保留的 cap-old 元素 (限 3 条)
+      };
+
       function _renderSubtitles() {
         hideEmpty("soloTranscript");
         document.getElementById("soloEmpty").style.display = "none";
         const el = document.getElementById("subtitleText");
-        el.style.display = "block";
-        // 已完成的 turn 优先用 tgt (用户要求),如果某 turn 完全没拿到 tgt 才退到 src 不丢失内容
-        const done = _soloDoneTurns.map((t) => t.tgt || t.src).filter(Boolean);
-        let current = "";
-        if (_soloTurn) {
-          if (_soloTurn.tgt) {
-            current = _soloTurn.tgt;
-          } else if (_soloTurn.src) {
-            // 译文还没来, 用灰色 italic 显示原文当占位 — 让用户感知到正在工作
-            current = `<span style="color:var(--dim);font-style:italic;font-weight:400">${_escapeHtml(_soloTurn.src)}</span>`;
+        el.style.display = "flex";
+
+        // 1. done 区增量同步: 每多一条 done, 把当前 .cap-current "降级" 为 .cap-old
+        const newDoneCount = _soloDoneTurns.length;
+        if (newDoneCount > _capState.renderedDoneCount) {
+          const cur = el.querySelector(".cap-current");
+          if (cur) {
+            cur.classList.remove("cap-current", "cap-placeholder");
+            cur.classList.add("cap-old");
+            cur.style.animationDelay = ""; // 清掉残留
+            _capState.keptDoneEls.push(cur);
+          }
+          _capState.currentText = "";
+          _capState.renderedDoneCount = newDoneCount;
+          // 限 3 条, 多出的 fade-out + remove
+          while (_capState.keptDoneEls.length > 3) {
+            const drop = _capState.keptDoneEls.shift();
+            drop.classList.add("cap-fade-out");
+            setTimeout(() => drop.remove(), 260);
           }
         }
-        const parts = [...done.map(_escapeHtml)];
-        if (current) parts.push(current);
-        el.innerHTML =
-          parts.join(" ") +
-          (recording ? '<span class="subtitle-cursor"></span>' : "");
+
+        // 2. 当前 turn 文本
+        let currentText = "";
+        let isPlaceholder = false;
+        if (_soloTurn) {
+          if (_soloTurn.tgt) {
+            currentText = _soloTurn.tgt;
+          } else if (_soloTurn.src) {
+            currentText = _soloTurn.src;
+            isPlaceholder = true;
+          }
+        }
+
+        let cur = el.querySelector(".cap-current");
+        if (currentText) {
+          if (!cur) {
+            cur = document.createElement("div");
+            cur.className = "cap-current";
+            el.appendChild(cur);
+            _capState.currentText = "";
+          }
+          cur.classList.toggle("cap-placeholder", isPlaceholder);
+
+          // 增量 diff
+          const old = _capState.currentText;
+          if (currentText === old) {
+            // no-op
+          } else if (currentText.startsWith(old)) {
+            // 追加新字符: 每字符独立 span + stagger animation-delay
+            const added = Array.from(currentText.slice(old.length));
+            added.forEach((ch, i) => {
+              const span = document.createElement("span");
+              span.className = "ch";
+              span.textContent = ch;
+              span.style.animationDelay = i * 18 + "ms";
+              cur.appendChild(span);
+            });
+          } else {
+            // 文本不连续 → 整体替换 (incremental 来错 / src→tgt 切换)
+            cur.innerHTML = "";
+            Array.from(currentText).forEach((ch, i) => {
+              const span = document.createElement("span");
+              span.className = "ch";
+              span.textContent = ch;
+              span.style.animationDelay = i * 14 + "ms";
+              cur.appendChild(span);
+            });
+          }
+          _capState.currentText = currentText;
+        } else if (cur) {
+          // 当前文本清空了 (罕见)
+          cur.remove();
+          _capState.currentText = "";
+        }
+
+        // 3. cursor — 始终保持在末尾
+        let cursor = el.querySelector(".subtitle-cursor");
+        if (recording) {
+          if (!cursor) {
+            cursor = document.createElement("span");
+            cursor.className = "subtitle-cursor";
+          }
+          el.appendChild(cursor);
+        } else if (cursor) {
+          cursor.remove();
+        }
+
         const c = document.getElementById("soloTranscript");
         c.scrollTop = c.scrollHeight;
       }
@@ -2163,6 +2748,9 @@
         }
         _soloTurn = null;
         _soloDoneTurns = [];
+        _capState.renderedDoneCount = 0;
+        _capState.currentText = "";
+        _capState.keptDoneEls = [];
         document.getElementById("subtitleText").innerHTML = "";
         document.getElementById("subtitleText").style.display = "none";
         document.getElementById("soloEmpty").style.display = "flex";
@@ -2179,7 +2767,20 @@
       async function openHistory() {
         showPanel("panelHistory");
         const list = document.getElementById("historyList");
-        list.innerHTML = '<div class="record-empty">加载中…</div>';
+        // 显 4 行 skeleton + shimmer 横扫, 数据到再 crossfade 真实内容
+        const skeletonHTML = Array(4)
+          .fill(0)
+          .map(
+            () => `<div class="record-skeleton">
+          <div class="sk-icon"></div>
+          <div class="sk-rows">
+            <div class="sk-bar sk-title"></div>
+            <div class="sk-bar sk-meta"></div>
+          </div>
+        </div>`,
+          )
+          .join("");
+        list.innerHTML = skeletonHTML;
         try {
           const r = await fetch("/recordings");
           const items = await r.json();
@@ -2497,7 +3098,35 @@
         if (m) m.innerHTML = `引擎: <b>${lbl}</b>`;
         const r = document.getElementById("micRoomMeta");
         if (r) r.innerHTML = `<b>${lbl}</b>`;
+        // 共享 underline 滑动到 active 按钮
+        requestAnimationFrame(syncEngineUnderline);
       }
+
+      function syncEngineUnderline() {
+        document.querySelectorAll(".engine-bar").forEach((bar) => {
+          let underline = bar.querySelector(".engine-underline");
+          if (!underline) {
+            underline = document.createElement("div");
+            underline.className = "engine-underline";
+            bar.appendChild(underline);
+          }
+          const active = bar.querySelector(".engine-btn.active");
+          if (!active) {
+            underline.classList.remove("visible");
+            return;
+          }
+          const barRect = bar.getBoundingClientRect();
+          const r = active.getBoundingClientRect();
+          if (r.width === 0) return; // 元素还没 layout (view 切换中)
+          underline.style.width = r.width + "px";
+          underline.style.transform = `translateX(${r.left - barRect.left}px)`;
+          underline.classList.add("visible");
+        });
+      }
+      // resize / view 切换 都要重算 underline
+      window.addEventListener("resize", () =>
+        requestAnimationFrame(syncEngineUnderline),
+      );
 
       // ============================================================
       // Lang cycling (顶部 lang chip)
@@ -2724,6 +3353,7 @@
       function cleanupMic() {
         recording = false;
         backendReady = false;
+        stopWaveViz(); // 先断 analyser, 再清 mic
         if (audioProcessor) {
           try {
             audioProcessor.disconnect();
@@ -2839,6 +3469,79 @@
         });
         hideBusyBanner();
         setMicTitle(`${engLabel} · 录音中`, false);
+        startWaveViz();
+      }
+
+      // ============================================================
+      // 真实 FFT 音波 (Web Audio AnalyserNode)
+      // ============================================================
+      const WAVE_BARS = 24;
+      let _audioAnalyser = null;
+      let _vizRafId = null;
+
+      function _ensureWaveBars(containerId) {
+        const el = document.getElementById(containerId);
+        if (!el) return null;
+        if (el.children.length !== WAVE_BARS) {
+          el.innerHTML = "";
+          for (let i = 0; i < WAVE_BARS; i++) {
+            const b = document.createElement("div");
+            b.className = "wave-bar";
+            el.appendChild(b);
+          }
+        }
+        return el;
+      }
+
+      function startWaveViz() {
+        if (!audioCtx || !mic) return;
+        if (_audioAnalyser) return; // 已在跑
+        // 找当前可见的容器 (solo 或 room)
+        const containerId = mode === "room" ? "waveRoom" : "waveSolo";
+        const el = _ensureWaveBars(containerId);
+        if (!el) return;
+        el.classList.add("live");
+        try {
+          _audioAnalyser = audioCtx.createAnalyser();
+          _audioAnalyser.fftSize = 64; // → 32 bin, 取前 24
+          _audioAnalyser.smoothingTimeConstant = 0.72;
+          mic.connect(_audioAnalyser);
+        } catch (e) {
+          console.error("[wave-viz] analyser init failed", e);
+          el.classList.remove("live");
+          return;
+        }
+        const buf = new Uint8Array(_audioAnalyser.frequencyBinCount);
+        const bars = el.querySelectorAll(".wave-bar");
+        const tick = () => {
+          if (!_audioAnalyser) return;
+          _audioAnalyser.getByteFrequencyData(buf);
+          for (let i = 0; i < bars.length; i++) {
+            // 0-255 → 0-1, 最小 0.06 让静态时也有底
+            const v = (buf[i] || 0) / 255;
+            const s = 0.06 + v * 0.94;
+            bars[i].style.transform = `scaleY(${s})`;
+          }
+          _vizRafId = requestAnimationFrame(tick);
+        };
+        tick();
+      }
+
+      function stopWaveViz() {
+        if (_vizRafId) cancelAnimationFrame(_vizRafId);
+        _vizRafId = null;
+        if (_audioAnalyser) {
+          try {
+            _audioAnalyser.disconnect();
+          } catch (e) {}
+        }
+        _audioAnalyser = null;
+        document.querySelectorAll(".wave-viz").forEach((el) => {
+          el.classList.remove("live");
+          el.querySelectorAll(".wave-bar").forEach((b) => {
+            b.style.transform = "scaleY(0.06)";
+          });
+        });
       }
 
       function playAudio(b64, sr) {
@@ -2900,7 +3603,11 @@
         document.getElementById("overlay").classList.add("show");
       }
       function closeOverlay() {
-        document.getElementById("overlay").classList.remove("show");
+        const ov = document.getElementById("overlay");
+        ov.classList.add("closing");
+        setTimeout(() => {
+          ov.classList.remove("show", "closing");
+        }, 150);
       }
 
       function doCreateRoom() {
@@ -2938,12 +3645,25 @@
       // Toast
       // ============================================================
       let _toastTimer;
+      let _toastHideTimer;
       function toast(msg) {
         const t = document.getElementById("toast");
         t.textContent = msg;
+        t.classList.remove("hiding");
+        // force reflow 让 animation 重新触发 (连续 toast 时)
+        if (t.classList.contains("show")) {
+          t.classList.remove("show");
+          void t.offsetWidth;
+        }
         t.classList.add("show");
         clearTimeout(_toastTimer);
-        _toastTimer = setTimeout(() => t.classList.remove("show"), 2400);
+        clearTimeout(_toastHideTimer);
+        _toastTimer = setTimeout(() => {
+          t.classList.add("hiding");
+          _toastHideTimer = setTimeout(() => {
+            t.classList.remove("show", "hiding");
+          }, 180);
+        }, 2400);
       }
 
       // ============================================================
